@@ -1,4 +1,0 @@
-/Applications/CLion.app/Contents/bin/cmake/mac/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" "/Users/MrBelieVe/Library/Mobile Documents/com~apple~CloudDocs/不变的C++/Mr_BelieVe_stl"
--- Configuring done
--- Generating done
--- Build files have been written to: /Users/MrBelieVe/Library/Mobile Documents/com~apple~CloudDocs/不变的C++/Mr_BelieVe_stl/cmake-build-debug
