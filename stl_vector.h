@@ -111,7 +111,66 @@ __STL_BEGIN_NAMESPACE
             return reverse_iterator(begin());
         }
 
+        size_type size() const {
+            return size_type(end() - begin());
+        }
 
+        size_type max_size() const {
+            return size_type(-1) / sizeof(_Tp);
+        }
+
+        size_type capacity() const {
+            return size_type(_M_end_of_storage - begin());
+        }
+
+        bool empty() const {
+            return begin() == end();
+        }
+
+        reference operator[](size_type __n) {
+            return *(begin() + __n);
+        }
+
+        const reference operator[](size_type __n) const {
+            return *(begin() + __n);
+        }
+
+        void _M_range_check(size_type __n) const {
+            if(__n >= size())
+            { throw; };
+        }
+
+        reference at(size_type __n) {
+            _M_range_check(__n);
+            return (*this)[__n];
+        }
+
+        const_reverse_iterator at(size_type __n) const {
+            _M_range_check(__n);
+            return (*this)[__n];
+        }
+
+        explicit vector(const allocator_type &__a = allocator_type()) : _Base(__a) {
+        }
+
+        vector(size_type __n, const _Tp &__value, const allocator_type &__a = allocator_type()) : _Base(__n, __a) {
+            _M_finish = uninitialized_fill_n(_M_start, __n, __value);
+        }
+
+        explicit vector(size_type __n)
+                : _Base(__n, allocator_type()) {
+            _M_finish = uninitialized_fill_n(_M_start, __n, _Tp());
+        }
+
+        vector(const vector<_Tp, _Alloc> &__x) : _Base(__x.size(), __x,get_allocator()) {
+            _M_finish = uninitialized_copy(__x.begin, __x.end(), _M_start);
+        }
+
+        template<class _InputIterator>
+        vector(_InputIterator __first, _InputIterator __last, const allocator_type &__a = allocator_type()):_Base(__a) {
+            typedef typename _Is_integer<_InputIterator>::_Intergal _Intergral;
+            _M_initialize_aux(__first, __last, _Intergral())
+        }
     };
 
 
