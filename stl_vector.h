@@ -271,7 +271,7 @@ __STL_BEGIN_NAMESPACE
         }
 
         iterator insert(iterator __position, const _Tp &__x) {
-            size_type __n == __position - begin();
+            size_type __n = __position - begin();
             if (_M_finish != _M_end_of_storage && __position == end()) {
                 construct(_M_finish, __x);
                 ++_M_finish;
@@ -284,7 +284,7 @@ __STL_BEGIN_NAMESPACE
 
         template<class _InputIterator>
                 void insert(iterator __pos, _InputIterator __first, _InputIterator __last) {
-            typedef typename _Is_interger<_InputIterator>::_Intergral _Intergral;
+            typedef typename _Is_integer<_InputIterator>::_Intergral _Intergral;
             _M_insert_dispath(__pos, __first, __last, _Intergral);
         }
 
@@ -396,7 +396,7 @@ __STL_BEGIN_NAMESPACE
     vector<_Tp, _Allc> &
     vector<_Tp, _Allc>::operator=(const vector<_Tp, _Alloc> &__x) {
         if (this != &__x) {
-            cosnt size_type __xlen = __x.size();
+            const size_type __xlen = __x.size();
             if (__xlen > capacity()) {
                 iterator __tmp = _M_alloc_and_copy(__xlen, __x.begin(), __x.end());
                 destroy(_M_start, _M_finish);
@@ -417,7 +417,230 @@ __STL_BEGIN_NAMESPACE
         return *this;
     }
 
+    template<class _Tp, class _Alloc>
+    void vector<_Tp, _Alloc>::_M_fill_assign(size_type __n, const _Tp &__val) {
+        if (__n > capacity()) {
+            vector<_Tp, _Alloc> __tmp(__n, __val, get_allocator());
+            __tmp.swap(*this);
+        } else if (__n > size()) {
+            fill(begin(), end(), __val);
+            _M_finish = uninitialized_fill_n(_M_finish, __n - size(), __val);
+        } else {
+            //size() >= __n
+            erase(fill_n(begin(), __n, __val), end());
+        }
+    }
 
+    template<class _Tp, class _Alloc>
+    template<class _InputIter>
+    void vector<_Tp, _Alloc>::_M_assign_aux(_InputIterator __first, _InputIterator __last,
+                                            input_iterator_tag) {
+        iterator __cur = begin();
+        for (; __first != __last && __cur != end(); ++__cur, ++__first)
+            *__cur = *__first;
+        //如果size > __n(__last-__first)，则擦除从超过__n个的元素
+        if (__first == __last)
+            erase(__cur, end());
+            //如果size < __n, 则向后插入少了的元素
+        else
+            insert(end(), __first, __last);
+    }
+
+    template<class _Tp, class _Alloc>
+    template<class _ForwardIter>
+    void vector<_Tp, _Alloc>::_M_assign_aux(_ForwardIterator __first, _ForwardIterator __last, forward_iterator_tag) {
+        size_type __len = 0;
+        //统计从__first 到 __last的元素个数
+        distance(__first, __last, __len);
+        if (__len > capacity()) {
+            //重新初始化并拷贝元素从first到last
+            iterator __tmp = _M_alloc_and_copy(__len, __first, __last);
+            destroy(_M_start, _M_finish);
+            _M_deallocate(_M_start, _M_alloc_and_copy(__len, __first, __last));
+            destroy(_M_start, _M_finish);
+            _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+            _M_start = __tmp;
+            _M_end_of_storage = _M_finish = _M_start + __len;
+        } else if (size() >= __len) {
+            iterator __new_finish = copy(__first, __last, _M_start);
+            destroy(__new_finish, _M_finish);
+            _M_finish = __new_finish;
+        } else {
+            // size < __len <= capaticy
+            _ForwardIter __mid = __first;
+            advance(__mid, size());
+            copy(__first, __mid, _M_start);
+            _M_finish = uninitialized_copy(__mid, __last, _M_finish);
+        }
+    }
+
+    template<class _Tp, class _Alloc>
+    void vector<_Tp, _Alloc>::_M_insert_aux(iterator __position, const _Tp &__x) {
+        if(_M_finish != _M_end_of_storage) {
+            construct(_M_finish, *(_M_finish - 1));
+            ++_M_finish;
+            _Tp __x_copy = __x;
+            copy_backword(__position, _M_finish - 1, _M_finish - 1);
+            *__position = __x_copy;
+        } else {
+            const size_type __old_size = size();
+            const size_type __len = __old_size != 0 ? 2 * __old_size : 1;//等于0, __len = 1。
+            iterator __new_start = _M_allocate(__len);
+            iterator __new_finish = __new_start;
+            try {
+                __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+                construct(__new_finish, __x);
+                ++__new_finish;
+                __new_finish = uninitialized_copy(__position, _M_finish, __new_finish);
+            }
+            catch (...) {
+                destroy(__new_start, __new_finish);
+                _M_deallocate(__new_start, __len);
+                throw;
+            }
+            destroy(begin(), end());
+            _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+            _M_start = __new_start;
+            _M_finish = __new_finish;
+            _M_end_of_storage = __new_start + __len;
+        }
+    }
+
+    template<class _Tp, class _Alloc>
+    void vector<_Tp, _Alloc>::_M_insert_aux(iterator __position) {
+        if (_M_finish != _M_end_of_storage) {
+            construct(_M_finish, *(_M_finish - 1));
+            ++_M_finish;
+            copy_backward(__position, _M_finish - 2, _M_finish - 1);
+            *__position = _Tp();
+        } else {
+            const size_type __old_size = size();
+            const size_type __len = __old_size != 0 ? 2 * __old_size : 1;
+            iterator __new_start = _M_allocate(__len);
+            iterator __new_finish = __new_start;
+            try {
+                __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+                construct(__new_finish);
+                ++__new_finish;
+                __new_finish = uninitialized_copy(__position, _M_finish, __new_finish);
+            }
+            catch (...) {
+                destroy(__new_start, __new_finish);
+                _M_deallocate(__new_start, __len);
+                throw;
+            }
+            destroy(begin(), end());
+            _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+            _M_start = __new_start;
+            _M_finish = __new_finish;
+            _M_end_of_storage = __new_start + __len;
+        }
+    }
+
+    template<class _Tp, class _Alloc>
+    void vector<_Tp, _Alloc>::_M_fill_insert(iterator __position, size_type __n,
+                                            const _Tp &__x) {
+        if (__n != 0) {
+            //剩余空间足够，无需重新开辟
+            if (size_type(_M_end_of_storage - _M_finish) >= __n) {
+                _Tp __x_copy = __x;
+                const size_type __elems_after = _M_finish - __positionl;
+                iterator __old_finish = _M_finish;
+                if (__elems_after > __n) {
+                    uninitialized_copy(_M_finish - __n, _M_finish, _M_finish);
+                    _M_finish += __n;
+                    copy_backward(__position, __old_finish - __n, __old_finish);
+                    fill(__position, __position + __n, __x_copy);
+                } else {
+                    uninitialized_fill_n(_M_finish, __n - __elems_after, __x_copy);
+                    _M_finish += __n - __elems_after;
+                    uninitialized_copy(__position, __old_finish, _M_finish);
+                    _M_finish += __elems_after;
+                    fill(__position, __old_finish, __x_copy);
+                }
+            } else {
+                const size_type __old_size = size();
+                const size_type __len = __old_size + max(__old_size, __n);
+                iterator __new_start = _M_allocate(__len);
+                iterator __new_finish = __new_start;
+                try {
+                    __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+                    __new_finish = uninitialized_fill_n(__new_finish, __n, __x);
+                    __new_finish = uninitialized_copy(__position, _M_finish, __new_finish);
+                }
+                catch (...) {
+                    destroy(__new_start, __new_finish);
+                    _M_allocate(__new_start, __len);
+                    throw;
+                }
+                destroy(_M_start, _M_finish);
+                _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                _M_start = __new_start;
+                _M_finish = __new_finish;
+                _M_end_of_storage = __new_finish + __len;
+            }
+        }
+    }
+
+    template<class _Tp, class _Alloc>
+    template<class _InputIterator>
+    void vector<_Tp, _Alloc>::_M_range_insert(iterator __pos,
+                                              _InputIterator __first,
+                                              _InputIterator __last,
+                                              input_iterator_tag) {
+        for (; __first != __last; ++__first) {
+            __pos = insert(__pos, *__first);
+            ++__pos;
+        }
+    }
+
+    template<class _Tp, class _Alloc>
+    template<class _ForwardIterator>
+    void vector<_Tp, _Alloc>::_M_range_insert(iterator __position,
+                                              _ForwardIterator __first,
+                                              _ForwardIterator __last,
+                                              forward_iterator_tag) {
+        if (__first != __last) {
+            size_type __n = 0;
+            distance(__first, __last, __n);
+            if (size_type(_M_end_of_storage - _M_finish) >= __n) {
+                const size_type __elems_after = _M_finish - __position;
+                iterator __old_finish = _M_finish;
+                if (__elems_after > __n) {
+                    uninitialized_copy(_M_finish - __n, _M_finish, _M_finish);
+                    _M_finish += __n;
+                    copy_backward(__position, __old_finish - __n, __old_finish);
+                    copy(__first, __last, __position);
+                } else {
+                    _ForwardIterator __mid = __first;
+                    advance(__mid, __last, _M_finish);
+                    uninitialized_copy(__position, __old_finish, _M_finish);
+                    _M_finish += __elems_after;
+                    copy(__first, __mid, __position);
+                }
+            } else {
+                const size_type __old_size = size();
+                const size_type __len = __old_size + max(__old_size, __n);
+                iterator __new_start = _M_allocate(__len);
+                iterator __new_finish = __new_start;
+                try {
+                  __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+                  __new_finish = uninitialized_copy(__first, __last, __new_finish);
+                  __new_finish = uninitialized_copy(__position, _M_finish, __new_finish);
+              }
+             catch (...) {
+                    destroy(__new_start, __new_finish);
+                 _M_deallocate(__new_start, __len);
+                    throw;
+                }
+                destroy(_M_start, _M_finish);
+               _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                _M_start = __new_start;
+                _M_finish = __new_finish;
+                _M_end_of_storage = __new_start + __len;
+            }
+        }
+    }
 
 
 
