@@ -169,7 +169,117 @@ __STL_BEGIN_NAMESPACE
         template<class _InputIterator>
         vector(_InputIterator __first, _InputIterator __last, const allocator_type &__a = allocator_type()):_Base(__a) {
             typedef typename _Is_integer<_InputIterator>::_Intergal _Intergral;
-            _M_initialize_aux(__first, __last, _Intergral())
+            _M_initialize_aux(__first, __last, _Intergral());
+        }
+
+        template<class _Integer>
+        void _M_initialize_aux(_Integer __n, _Integer __value, __true_type) {
+            _M_start = _M_allocate(__n);
+            _M_end_of_storage = _M_start + __n;
+            _M_finish = uninitialized_fill_n(_M_start, __n, __value);
+        }
+
+        template<class _InputIterator>
+                void _M_initialize_aux(_InputIterator __first, _InputIterator __last, __false_type) {
+            _M_range_initialize(__first, __last, __ITERATOR_CATEGORY(__first));
+        }
+
+        ~vector() {
+            destroy(_M_start, _M_finish);
+        }
+
+        vector<_Tp, _Alloc> &operator=(const vector<_Tp, _Alloc> &__x);
+
+        void reserve(size_type __n) {
+            if (capacity() < __n) {
+                const size_type __old_size = size();
+                iterator __tmp = _M_allocate_and_copy(__n, _M_start, _M_finish);
+                destroy(_M_start, _M_finish);
+                _M_deallocate(_M_start, _M_end_of_storage - _M_start);
+                _M_start = __tmp;
+                _M_finish = __tmp + __old_size;
+                _M_end_of_storage == _M_start + __n;
+            }
+        }
+
+        void assign(size_type __n, const _Tp &__val) {
+            _M_fill_assign(__n, __val);
+        }
+
+        template<class _InputIterator>
+        void assign(_InputIterator __first, _InputIterator __last) {
+            typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
+            _M_assign_dispath(__first, __last, _Integral());
+        }
+
+        template<class _Integer>
+        void _M_assign_dispath(_Integer __n, _Integer __val, __true_type) {
+            _M_fill_assign((size_type) __n, (_Tp) __val);
+        }
+
+        template<class _InputIterator>
+        void _M_assign_dispath(_InputIterator __first, _InputIterator __last, __false_type) {
+            _M_assign_aux(__first, __last, __ITERATOR_CATEGORY(__first));
+        }
+
+        template<class _InputIterator>
+        void _M_assign_aux(_InputIterator __first, _InputIterator __last, input_iterator_tag);
+
+        template<class _ForwardIterator>
+        void _M_assign_aux(_ForwardIterator __first, _ForwardIterator __last, forward_iterator_tag);
+
+        reference front() {
+            return *begin();
+        }
+
+        const_reference front() const {
+            return *begin();
+        }
+
+        reference back() {
+            return *(end() - 1);
+        }
+
+        const_reference back() const {
+            return *(end() - 1);
+        }
+
+        void push_back(const _Tp &__value) {
+            if(_M_finish != _M_end_of_storage) {
+                construct(_M_finish, __value);
+                ++_M_finish;
+            } else {
+                _M_insert_aux(end(), __value);
+            }
+        }
+
+        void push_back() {
+            if (_M_finish != _M_end_of_storage) {
+                construct(_M_finish);
+                ++_M_finish;
+            } else {
+                _M_insert_aux(end());
+            }
+        }
+
+        void swap(vector<_Tp, _Alloc> &__x) {
+            if (this != &__x) {
+                Mr_BelieVe_stl::swap(_M_start, __x._M_start);
+                Mr_BelieVe_stl::swap(_M_finish, __x._M_finish);
+                Mr_BelieVe_stl::swap(_M_end_of_storage, __x._M_end_of_storage);
+            }
+        }
+
+        iterator insert(iterator __position, const _Tp &__x) {
+            size_type __n == __position - begin();
+            if (_M_finish != _M_end_of_storage && __position == end()) {
+                construct(_M_finish, __x);
+                ++_M_finish;
+            }
+            else {
+                _M_insert_aux(__position, __x);
+            }
+            return begin() + __n;
         }
     };
 
