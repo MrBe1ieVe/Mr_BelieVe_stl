@@ -9,7 +9,7 @@
 #include "stl_alloc.h"
 #include "stl_iterator.h"
 #include "stl_uninitialized.h"
-
+#include "stl_algobase.h"
 __STL_BEGIN_NAMESPACE
 
     template<class _Tp, class _Alloc>
@@ -313,7 +313,7 @@ __STL_BEGIN_NAMESPACE
             --_M_finish;
             destroy(_M_finish);
         }
-
+        //清除某个position的元素
         iterator erase(iterator __position) {
             //如果position后面还有元素，需要拷贝;如果position是最后一个元素，则后面没有元素，直接destroy即可
             if (__position + 1 != end()) {
@@ -520,6 +520,7 @@ __STL_BEGIN_NAMESPACE
         } else {
             const size_type __old_size = size();
             const size_type __len = __old_size != 0 ? 2 * __old_size : 1;
+            //检查是否还有空间，没有的话，如果原大小=0，分配1个元素大小空间，或者2 * __old_size
             iterator __new_start = _M_allocate(__len);
             iterator __new_finish = __new_start;
             try {
@@ -527,6 +528,7 @@ __STL_BEGIN_NAMESPACE
                 construct(__new_finish);
                 ++__new_finish;
                 __new_finish = uninitialized_copy(__position, _M_finish, __new_finish);
+                //拷贝vector的备用空间中的内容
             }
             catch (...) {
                 destroy(__new_start, __new_finish);
@@ -547,15 +549,19 @@ __STL_BEGIN_NAMESPACE
         if (__n != 0) {
             //剩余空间足够，无需重新开辟
             if (size_type(_M_end_of_storage - _M_finish) >= __n) {
+                //备用空间大于等于”新增元素个数“
                 _Tp __x_copy = __x;
+                //计算插入点之后的现有元素个数
                 const size_type __elems_after = _M_finish - __position;
                 iterator __old_finish = _M_finish;
                 if (__elems_after > __n) {
+                    // "插入点后现有元素" 大于 "新增元素"
                     uninitialized_copy(_M_finish - __n, _M_finish, _M_finish);
-                    _M_finish += __n;
+                    _M_finish += __n; //后移n位
                     copy_backward(__position, __old_finish - __n, __old_finish);
                     fill(__position, __position + __n, __x_copy);
                 } else {
+                    // "插入点后现有元素" 小于 "新增元素"
                     uninitialized_fill_n(_M_finish, __n - __elems_after, __x_copy);
                     _M_finish += __n - __elems_after;
                     uninitialized_copy(__position, __old_finish, _M_finish);
@@ -563,13 +569,17 @@ __STL_BEGIN_NAMESPACE
                     fill(__position, __old_finish, __x_copy);
                 }
             } else {
+                //备用空间小于"新增元素个数"
                 const size_type __old_size = size();
                 const size_type __len = __old_size + max(__old_size, __n);
                 iterator __new_start = _M_allocate(__len);
                 iterator __new_finish = __new_start;
                 try {
+                    //旧插入点前的元素 复制到新空间
                     __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+                    //填入新增元素
                     __new_finish = uninitialized_fill_n(__new_finish, __n, __x);
+                    //旧插入点后的元素 复制到新空间
                     __new_finish = uninitialized_copy(__position, _M_finish, __new_finish);
                 }
                 catch (...) {
