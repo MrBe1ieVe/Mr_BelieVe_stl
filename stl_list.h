@@ -69,11 +69,13 @@ __STL_BEGIN_NAMESPACE
             return &(operator*());
         }
 
+        //++i，可以++(++i)
         _Self &operator++() {
             this->_M_incr();
             return *this;
         }
 
+        //i++,不可以(i++)++
         _Self operator++(int) {
             _Self __tmp = *this;
             this->_M_incr();
@@ -393,21 +395,25 @@ __STL_BEGIN_NAMESPACE
                 __first._M_node->_M_prev = __tmp;
             }
         }
-        // !!!!!!!!!!!!!!!!!!!!!!!!
+
 
     public:
+        // splice是接合操作，将某一段范围的元素从一个list插入到另一个list的某个点
+        // 将x接合于position所指位置之前，x必须和*this不同
         void splice(iterator __position, list &__x) {
             if (!__x.empty()) {
                 this->transfer(__position, __x.begin(), __x.end();
             }
         }
 
+        //将i所知位置指向position位置之前，position和i可指向同一个list
         void splice(iterator __position, list &, iterator __i) {
             iterator __j = __i;
             ++__j;
             this->transfer(__position, __i, __j);
         }
 
+        //接合到position位置之前，可指向同一个李斯特，但是position不能位于[first, last)之内
         void splice(iterator __position, list &, iterator __first, iterator __last) {
             if (__first != __last)
                 this->transfer(__position, __first, __last);
@@ -607,7 +613,7 @@ __STL_BEGIN_NAMESPACE
 
     template<class _Tp, class _Alloc>
     void list<_Tp, _Alloc>::merge(list<_Tp, _Alloc> &__x) {
-
+        //将x合并到*this上，两个list都必须先经过递增排序
     }
 
     inline void __List_base_reverse(_List_node_base *__p) {
